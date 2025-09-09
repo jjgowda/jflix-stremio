@@ -1,10 +1,12 @@
-import { supabase, requireToken } from '../../../_supabase.js';
-import { withCors } from '../../../_cors.js';
+import { supabase, requireToken } from '../../_supabase.js';
+import { withCors } from '../../_cors.js';
 
 async function handler(req, res) {
   if (!requireToken(req, res)) return;
-  const { type, id } = req.query;
-  if (type !== 'movie' || id !== 'supabase-movies') {
+
+  // In this route, only `id` exists (e.g. 'supabase-movies')
+  const { id } = req.query;
+  if (id !== 'supabase-movies') {
     return res.status(200).json({ metas: [] });
   }
 
@@ -21,7 +23,7 @@ async function handler(req, res) {
 
   const metas = (data || []).map(m => ({
     id: String(m.id),
-    type: "movie",
+    type: 'movie',
     name: m.title || `Movie ${m.id}`,
     poster: m.poster || m.mob_poster || undefined,
     description: m.overview || undefined,
@@ -32,4 +34,5 @@ async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   res.status(200).json({ metas });
 }
+
 export default withCors(handler);
