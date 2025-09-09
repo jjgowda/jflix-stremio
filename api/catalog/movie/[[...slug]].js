@@ -4,35 +4,32 @@ import { withCors } from '../../_cors.js'
 async function handler(req, res) {
   if (!requireToken(req, res)) return
 
-  // /api/catalog/movie/supabase-movies.json  → slug = ["supabase-movies.json"]
-  const slug = req.query.slug || []
-  const idWithExt = slug[0] || ''
-  const id = idWithExt.replace(/\.json$/i, '')
+  try {
+    const { data, error } = await supabase
+      .from('movies')
+      .select('id, title, poster, mob_poster, overview, year, language')
+      .limit(200)
 
-  if (id !== 'supabase-movies') return res.status(200).json({ metas: [] })
+    if (error) {
+      console.error('Catalog select error:', error)
+      return res.status(200).json({ metas: [], debug: { error: String(error.message || error) } })
+    }
 
-  const { data, error } = await supabase
-    .from('movies')
-    .select('id, title, poster, mob_poster, overview, year, language, created_at')
-    .order('created_at', { ascending: false })
-    .limit(200)
+    const metas = (data || []).map(m => ({
+      id: String(m.id),
+      type: 'movie',
+      name: m.title || `Movie ${m.id}`,
+      poster: m.poster || m.mob_poster || undefined,
+      description: m.overview || undefined,
+      year: m.year || undefined,
+      language: m.language || undefined
+    }))
 
-  if (error) {
-    console.error('Catalog error:', error)
-    return res.status(200).json({ metas: [] })
+    res.setHeader('Cache-Control', 'no-store')
+    return res.status(200).json({ metas, debug: { count: metas.length } })
+  } catch (e) {
+    console.error('Catalog fatal:', e)
+    return res.status(200).json({ metas: [], debug: { fatal: String(e.message || e) } })
   }
-
-  const metas = (data || []).map(m => ({
-    id: String(m.id),
-    type: 'movie',
-    name: m.title || `Movie ${m.id}`,
-    poster: m.poster || m.mob_poster || undefined,
-    description: m.overview || undefined,
-    year: m.year || undefined,
-    language: m.language || undefined
-  }))
-
-  res.setHeader('Cache-Control', 'no-store')
-  res.status(200).json({ metas })
 }
 export default withCors(handler)
