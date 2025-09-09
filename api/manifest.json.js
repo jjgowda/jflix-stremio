@@ -1,21 +1,17 @@
 import { requireToken } from './_supabase.js';
+import { withCors } from './_cors.js';
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!requireToken(req, res)) return;
-
-  const manifest = {
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.status(200).json({
     id: "com.you.supabase-mkv",
     version: "1.0.0",
     name: "Supabase MKV (Personal)",
     description: "Streams MKVs from your Supabase `movies` table",
     types: ["movie"],
-    catalogs: [
-      { type: "movie", id: "supabase-movies", name: "Supabase Movies" }
-    ],
+    catalogs: [{ type: "movie", id: "supabase-movies", name: "Supabase Movies" }],
     resources: ["catalog", "stream"]
-  };
-
-  // Stremio caches the manifest; short TTL is fine
-  res.setHeader('Cache-Control', 'public, max-age=3600');
-  res.status(200).json(manifest);
+  });
 }
+export default withCors(handler);
