@@ -1,11 +1,11 @@
-import { supabase, requireToken, maybeSignSupabaseUrl } from '../../../_supabase.js';
-import { withCors } from '../../../_cors.js';
+import { supabase, requireToken, maybeSignSupabaseUrl } from '../../_supabase.js';
+import { withCors } from '../../_cors.js';
 
 async function handler(req, res) {
   if (!requireToken(req, res)) return;
 
-  const { type, id } = req.query;
-  if (type !== 'movie') return res.status(200).json({ streams: [] });
+  // Here `id` is the movie id (e.g. 733)
+  const { id } = req.query;
 
   const { data, error } = await supabase
     .from('movies')
@@ -25,11 +25,12 @@ async function handler(req, res) {
 
     res.setHeader('Cache-Control', 'no-store');
     res.status(200).json({
-      streams: [{ name: "Direct MKV", title: data.title || `Movie ${id}`, url: playableUrl }]
+      streams: [{ name: 'Direct MKV', title: data.title || `Movie ${id}`, url: playableUrl }]
     });
   } catch (e) {
     console.error('Signing/URL error:', e);
     res.status(200).json({ streams: [] });
   }
 }
+
 export default withCors(handler);
