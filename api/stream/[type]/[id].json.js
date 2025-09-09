@@ -1,5 +1,5 @@
-import { supabase, requireToken, maybeSignSupabaseUrl } from '../../_supabase.js';
-import { withCors } from '../../_cors.js';
+import { supabase, requireToken, maybeSignSupabaseUrl } from '../../../_supabase.js';
+import { withCors } from '../../../_cors.js';
 
 async function handler(req, res) {
   if (!requireToken(req, res)) return;
