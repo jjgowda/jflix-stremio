@@ -6,18 +6,22 @@ async function handler(req, res) {
 
   // Example: /api/stream/movie/733.json → slug = ["733.json"]
   const slug = req.query.slug || []
-  const idWithExt = slug[0] || ''
-  const id = idWithExt.replace(/\.json$/i, '')
+  const last = slug[slug.length - 1] || ''
+  const idStr = last.replace(/\.json$/i, '')
+  const id = idStr.trim()
+
+  if (!id) {
+    return res.status(200).json({ streams: [], debug: { fatal: 'No id parsed from URL', slug } })
+  }
 
   try {
     const { data, error } = await supabase
       .from('movies')
       .select('title, url')
-      .eq('id', id)
+      .eq('id', id)   // Supabase will coerce string "733" to int
       .single()
 
     if (error || !data) {
-      console.error('Stream lookup error:', error)
       return res.status(200).json({ streams: [], debug: { id, error: error?.message } })
     }
 
@@ -31,16 +35,11 @@ async function handler(req, res) {
     res.setHeader('Cache-Control', 'no-store')
     res.status(200).json({
       streams: [
-        {
-          name: 'Direct MKV',
-          title: data.title || `Movie ${id}`,
-          url: playableUrl
-        }
+        { name: 'Direct MKV', title: data.title || `Movie ${id}`, url: playableUrl }
       ]
     })
   } catch (e) {
-    console.error('Fatal stream error:', e)
-    res.status(200).json({ streams: [], debug: { fatal: e.message } })
+    res.status(200).json({ streams: [], debug: { fatal: e.message, slug } })
   }
 }
 
