@@ -4,21 +4,19 @@ import { withCors } from '../../_cors.js'
 async function handler(req, res) {
   if (!requireToken(req, res)) return
 
-  // Example: /api/stream/movie/733.json → slug = ["733.json"]
-  const slug = req.query.slug || []
-  const last = slug[slug.length - 1] || ''
-  const idStr = last.replace(/\.json$/i, '')
-  const id = idStr.trim()
+  // Vercel gives id = "733.json" when hitting /stream/movie/733.json
+  const rawId = req.query.id || ''
+  const id = String(rawId).replace(/\.json$/i, '').trim()
 
   if (!id) {
-    return res.status(200).json({ streams: [], debug: { fatal: 'No id parsed from URL', slug } })
+    return res.status(200).json({ streams: [], debug: { fatal: 'No id parsed', rawId } })
   }
 
   try {
     const { data, error } = await supabase
       .from('movies')
       .select('title, url')
-      .eq('id', id)   // Supabase will coerce string "733" to int
+      .eq('id', id)
       .single()
 
     if (error || !data) {
@@ -39,7 +37,7 @@ async function handler(req, res) {
       ]
     })
   } catch (e) {
-    res.status(200).json({ streams: [], debug: { fatal: e.message, slug } })
+    res.status(200).json({ streams: [], debug: { fatal: e.message, rawId } })
   }
 }
 
