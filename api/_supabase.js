@@ -1,51 +1,42 @@
 import { createClient } from '@supabase/supabase-js';
 
-export const supabase = createClient(
-  process.env.SUPABASE_URL,
-  // Use service role if you want to sign private storage URLs; else anon is fine for public reads.
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY,
-  {
-    auth: {
-      persistSession: false
-    }
+function reqEnv(name) {
+  const v = process.env[name];
+  if (!v || !String(v).trim()) {
+    throw new Error(`Missing ENV ${name}`);
   }
-);
+  return v;
+}
 
-// optional: simple token guard for personal use
+const SUPABASE_URL = reqEnv('SUPABASE_URL');
+const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+if (!KEY) {
+  throw new Error('Missing ENV SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY');
+}
+
+export const supabase = createClient(SUPABASE_URL, KEY, { auth: { persistSession: false } });
+
 export function requireToken(req, res) {
   const required = process.env.ADDON_TOKEN;
   if (!required) return true;
-  const tok = (req.query?.token || '').toString();
-  if (tok === required) return true;
-  res.status(401).json({ err: 'Unauthorized. Append ?token=<ADDON_TOKEN> to the URL.' });
+  if ((req.query?.token || '') === required) return true;
+  res.status(401).json({ err: 'Unauthorized. Append ?token=<ADDON_TOKEN>' });
   return false;
 }
 
-/**
- * If url is like: supabase://<bucket>/<path/to/file.mkv>
- * we’ll sign it for short-lived access.
- */
 export async function maybeSignSupabaseUrl(rawUrl, expiresIn = 90) {
   if (!rawUrl) return null;
-  if (!rawUrl.startsWith('supabase://')) return rawUrl; // normal http(s) links go through
-
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceKey) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY is required to sign supabase:// URLs');
+  if (!rawUrl.startsWith('supabase://')) return rawUrl;
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('Signing requested but SUPABASE_SERVICE_ROLE_KEY is missing');
   }
-
   const withoutScheme = rawUrl.replace('supabase://', '');
-  const firstSlash = withoutScheme.indexOf('/');
-  if (firstSlash === -1) throw new Error('Invalid supabase:// URL. Expected supabase://bucket/path');
+  const slash = withoutScheme.indexOf('/');
+  if (slash === -1) throw new Error('Invalid supabase:// URL. Use supabase://bucket/path/file.mkv');
+  const bucket = withoutScheme.slice(0, slash);
+  const objectPath = withoutScheme.slice(slash + 1);
 
-  const bucket = withoutScheme.slice(0, firstSlash);
-  const objectPath = withoutScheme.slice(firstSlash + 1);
-
-  const { data, error } = await supabase
-    .storage
-    .from(bucket)
-    .createSignedUrl(objectPath, expiresIn);
-
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(objectPath, expiresIn);
   if (error) throw error;
   return data.signedUrl;
 }
