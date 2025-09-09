@@ -1,6 +1,7 @@
 import { supabase, requireToken } from '../../_supabase.js';
+import { withCors } from '../../_cors.js';
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!requireToken(req, res)) return;
 
   const { type, id } = req.query;
@@ -8,7 +9,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ metas: [] });
   }
 
-  // Adjust .limit if you have many rows. Add filters if you want (e.g., is_public = true)
   const { data, error } = await supabase
     .from('movies')
     .select('id, title, poster, mob_poster, overview, year, language')
@@ -33,3 +33,4 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   res.status(200).json({ metas });
 }
+export default withCors(handler);
